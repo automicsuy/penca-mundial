@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  serverExternalPackages: ["@supabase/ssr"],
   images: {
     remotePatterns: [
       {
@@ -23,9 +24,6 @@ const nextConfig = {
         pathname: "/**",
       },
     ],
-  },
-  experimental: {
-    serverComponentsExternalPackages: ["@supabase/ssr"],
   },
 };
 

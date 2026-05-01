@@ -136,4 +136,15 @@ export default async function DashboardPage() {
                   key={group.id}
                   group={group}
                   memberCount={memberCounts[group.id] ?? 1}
-           
+                             userPoints={lb?.total_points}
+                  userRank={lb?.rank}
+                  isAdmin={m.role === "admin"}
+                />
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}

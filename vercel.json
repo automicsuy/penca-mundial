@@ -2,11 +2,11 @@
   "crons": [
     {
       "path": "/api/cron/sync-matches",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/calculate-points",
-      "schedule": "2-57/5 * * * *"
+      "schedule": "0 7 * * *"
     }
   ]
 }

@@ -138,10 +138,29 @@ export async function GET(request: Request) {
       `[sync-matches] Processed ${synced} matches, upserted ${upserted}, errors: ${errors.length}`
     );
 
+    // Reset points_earned to 0 for predictions on non-FINISHED matches.
+    // Ensures manually-set test results don't persist after a real sync.
+    const { data: nonFinished } = await supabase
+      .from("matches")
+      .select("id")
+      .not("status", "in", '("FINISHED")');
+
+    let pointsReset = 0;
+    if (nonFinished && nonFinished.length > 0) {
+      const ids = nonFinished.map((m: { id: string }) => m.id);
+      const { count } = await supabase
+        .from("predictions")
+        .update({ points_earned: 0, updated_at: new Date().toISOString() })
+        .in("match_id", ids)
+        .select("*", { count: "exact", head: true });
+      pointsReset = count ?? 0;
+    }
+
     return NextResponse.json({
       synced,
       upserted,
-      errors: errors.slice(0, 10), // Limit error list
+      pointsReset,
+      errors: errors.slice(0, 10),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

@@ -138,6 +138,21 @@ export async function syncFixture() {
       }
     }
 
+    // After sync: reset points_earned to 0 for predictions on non-FINISHED matches.
+    // This handles the case where a manually-set test result gets overwritten by the sync.
+    const { data: nonFinished } = await db
+      .from("matches")
+      .select("id")
+      .not("status", "in", '("FINISHED")');
+
+    if (nonFinished && nonFinished.length > 0) {
+      const ids = nonFinished.map((m: { id: string }) => m.id);
+      await db
+        .from("predictions")
+        .update({ points_earned: 0, updated_at: new Date().toISOString() })
+        .in("match_id", ids);
+    }
+
     return {
       success: true,
       total: matches.length,

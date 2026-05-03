@@ -39,22 +39,14 @@ export function MemberRow({
 
   async function handleToggleEnabled() {
     setLoadingEnable(true);
-    const fd = new FormData();
-    fd.append("memberId", memberId);
-    fd.append("groupId", groupId);
-    fd.append("enabled", String(!enabled));
-    const result = await toggleMemberEnabled(fd);
+    const result = await toggleMemberEnabled(memberId, groupId, !enabled);
     if (!result?.error) setEnabled(!enabled);
     setLoadingEnable(false);
   }
 
   async function handleSetPayment(status: string) {
     setLoadingPay(true);
-    const fd = new FormData();
-    fd.append("memberId", memberId);
-    fd.append("groupId", groupId);
-    fd.append("status", status);
-    const result = await setMemberPaymentStatus(fd);
+    const result = await setMemberPaymentStatus(memberId, groupId, status);
     if (!result?.error) setPayStatus(status);
     setLoadingPay(false);
   }

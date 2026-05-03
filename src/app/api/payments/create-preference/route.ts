@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
   const { data: group } = await supabase
     .from("groups")
-    .select("id, name, slug, entry_fee, entry_fee_required")
+    .select("id, name, slug, entry_fee, entry_fee_required, platform_fee_pct")
     .eq("slug", groupSlug)
     .single();
 
@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
   if (!member) return NextResponse.json({ error: "Not a member" }, { status: 403 });
   if (member.payment_status === "approved") return NextResponse.json({ error: "Already paid" }, { status: 400 });
 
+  const platformFeePct = group.platform_fee_pct ?? 5;
+  const platformCommission = Math.round(group.entry_fee * platformFeePct / 100 * 100) / 100;
+
   const preference = await createPreference({
     groupSlug: group.slug,
     groupName: group.name,
@@ -45,6 +48,7 @@ export async function POST(req: NextRequest) {
     group_id: group.id, user_id: user.id,
     preference_id: preference.id, status: "pending",
     amount: group.entry_fee, currency: "UYU",
+    platform_commission: platformCommission,
   });
 
   await supabase.from("group_members")

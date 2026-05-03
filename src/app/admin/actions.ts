@@ -79,30 +79,34 @@ export async function syncFixture() {
 
     for (const match of matches) {
       try {
-        let homeId =
-          teamByApiId.get(match.homeTeam.id) ??
-          teamByName.get(match.homeTeam.name.toLowerCase());
-        let awayId =
-          teamByApiId.get(match.awayTeam.id) ??
-          teamByName.get(match.awayTeam.name.toLowerCase());
+        // Skip teams with null names (TBD knockout slots) — don't insert garbage entries
+        const homeHasName = !!match.homeTeam?.name;
+        const awayHasName = !!match.awayTeam?.name;
 
-        // Upsert unknown teams on-the-fly
-        if (!homeId) {
+        let homeId = homeHasName
+          ? teamByApiId.get(match.homeTeam.id) ?? teamByName.get(match.homeTeam.name.toLowerCase())
+          : undefined;
+        let awayId = awayHasName
+          ? teamByApiId.get(match.awayTeam.id) ?? teamByName.get(match.awayTeam.name.toLowerCase())
+          : undefined;
+
+        // Upsert unknown teams on-the-fly — only if they have a real name
+        if (!homeId && homeHasName) {
           const { data: t } = await db
             .from("teams")
             .upsert(
-              { api_id: match.homeTeam.id, name: match.homeTeam.name, short_name: match.homeTeam.tla, flag_url: match.homeTeam.crest },
+              { api_id: match.homeTeam.id, name: match.homeTeam.name, short_name: match.homeTeam.tla || null, flag_url: match.homeTeam.crest || null },
               { onConflict: "api_id" }
             )
             .select("id")
             .single();
           homeId = t?.id;
         }
-        if (!awayId) {
+        if (!awayId && awayHasName) {
           const { data: t } = await db
             .from("teams")
             .upsert(
-              { api_id: match.awayTeam.id, name: match.awayTeam.name, short_name: match.awayTeam.tla, flag_url: match.awayTeam.crest },
+              { api_id: match.awayTeam.id, name: match.awayTeam.name, short_name: match.awayTeam.tla || null, flag_url: match.awayTeam.crest || null },
               { onConflict: "api_id" }
             )
             .select("id")

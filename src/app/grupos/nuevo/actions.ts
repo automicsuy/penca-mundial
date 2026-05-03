@@ -24,6 +24,18 @@ export async function createGroup(formData: FormData) {
   if (!name) return { error: "El nombre del grupo no es válido." };
   if (entry_fee_required && entry_fee < 1) return { error: "Ingresá un monto de inscripción válido." };
 
+  // Check permission to create paid groups
+  if (entry_fee_required) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("can_create_groups, is_superadmin")
+      .eq("id", user.id)
+      .single();
+    if (!profile?.can_create_groups && !profile?.is_superadmin) {
+      return { error: "No tenés autorización para crear grupos de pago. Contactá al administrador de la plataforma." };
+    }
+  }
+
   const slug = generateSlug(name);
   if (!slug) return { error: "El nombre del grupo no es válido." };
 

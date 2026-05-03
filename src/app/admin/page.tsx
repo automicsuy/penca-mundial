@@ -69,6 +69,12 @@ export default async function SuperAdminPage() {
               ⚽ Editor de partidos y resultados
             </Link>
             <Link
+              href="/admin/users"
+              className="flex items-center gap-2 text-sm font-semibold text-[#0A2342] hover:underline"
+            >
+              👥 Usuarios y comisiones
+            </Link>
+            <Link
               href="/dashboard"
               className="flex items-center gap-2 text-sm text-[#0A2342] hover:underline"
             >

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Trophy, AlertCircle } from "lucide-react";
 
@@ -10,14 +11,24 @@ interface JoinPageProps {
   params: { code: string };
 }
 
+// Service-role client bypasses RLS — used only for reading public invite info
+function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
+
 export default async function UnirsePage({ params }: JoinPageProps) {
-  const supabase = await createClient();
+  const supabase = await createClient();         // user session (for member ops)
+  const adminSupabase = createAdminClient();     // service role (bypass RLS for invite lookup)
+
   const { data: { user } } = await supabase.auth.getUser();
 
   const code = params.code.toUpperCase();
 
-  // Find invitation (include entry_fee info for payment status logic)
-  const { data: invitation } = await supabase
+  // Use admin client so non-members can read the invitation + group info
+  const { data: invitation } = await adminSupabase
     .from("invitations")
     .select(`
       *,
@@ -48,7 +59,7 @@ export default async function UnirsePage({ params }: JoinPageProps) {
     return <ErrorPage message="Este link de invitación alcanzó el límite de usos." />;
   }
 
-  // If not logged in, redirect to login with this URL as return
+  // If not logged in, show login prompt
   if (!user) {
     const loginUrl = `/?redirect=${encodeURIComponent(`/unirse/${code}`)}`;
     return (
@@ -71,7 +82,7 @@ export default async function UnirsePage({ params }: JoinPageProps) {
     );
   }
 
-  // Check if already a member
+  // Check if already a member (use user client — RLS is fine here, they ARE a member)
   const { data: existingMember } = await supabase
     .from("group_members")
     .select("id")
@@ -86,9 +97,9 @@ export default async function UnirsePage({ params }: JoinPageProps) {
   // Determine payment status and enabled state based on group config
   const requiresPayment = group.entry_fee_required === true;
   const memberPaymentStatus = requiresPayment ? "pending" : "free";
-  const memberEnabled = !requiresPayment; // disabled until payment approved if fee required
+  const memberEnabled = !requiresPayment;
 
-  // Join the group
+  // Join the group (use user client so RLS auth.uid() check works)
   const { error: joinError } = await supabase
     .from("group_members")
     .insert({
@@ -104,8 +115,8 @@ export default async function UnirsePage({ params }: JoinPageProps) {
     return <ErrorPage message={`No se pudo unir al grupo: ${joinError.message}`} />;
   }
 
-  // Increment uses count
-  await supabase
+  // Increment uses count via admin client
+  await adminSupabase
     .from("invitations")
     .update({ uses_count: invitation.uses_count + 1 })
     .eq("id", invitation.id);

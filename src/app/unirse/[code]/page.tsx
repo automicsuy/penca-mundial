@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { Trophy, Users, AlertCircle } from "lucide-react";
+import { Trophy, AlertCircle } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +16,12 @@ export default async function UnirsePage({ params }: JoinPageProps) {
 
   const code = params.code.toUpperCase();
 
-  // Find invitation
+  // Find invitation (include entry_fee info for payment status logic)
   const { data: invitation } = await supabase
     .from("invitations")
     .select(`
       *,
-      groups (id, name, slug, description, prize_1st, prize_2nd, prize_3rd)
+      groups (id, name, slug, description, prize_1st, prize_2nd, prize_3rd, entry_fee_required, entry_fee)
     `)
     .eq("code", code)
     .single();
@@ -83,6 +83,11 @@ export default async function UnirsePage({ params }: JoinPageProps) {
     redirect(`/grupos/${group.slug}`);
   }
 
+  // Determine payment status and enabled state based on group config
+  const requiresPayment = group.entry_fee_required === true;
+  const memberPaymentStatus = requiresPayment ? "pending" : "free";
+  const memberEnabled = !requiresPayment; // disabled until payment approved if fee required
+
   // Join the group
   const { error: joinError } = await supabase
     .from("group_members")
@@ -90,44 +95,22 @@ export default async function UnirsePage({ params }: JoinPageProps) {
       group_id: group.id,
       user_id: user.id,
       role: "member",
+      payment_status: memberPaymentStatus,
+      enabled: memberEnabled,
     });
 
-  if (!joinError) {
-    // Increment uses count
-    await supabase
-      .from("invitations")
-      .update({ uses_count: invitation.uses_count + 1 })
-      .eq("id", invitation.id);
-
-    redirect(`/grupos/${group.slug}?joined=1`);
+  if (joinError) {
+    console.error("Join error:", JSON.stringify(joinError));
+    return <ErrorPage message={`No se pudo unir al grupo: ${joinError.message}`} />;
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0A2342] to-[#1a3a5c] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
-        <Trophy className="w-12 h-12 text-[#FFD700] mx-auto mb-3" />
-        <h1 className="text-xl font-black text-[#0A2342] mb-2">{group.name}</h1>
-        {group.description && (
-          <p className="text-gray-500 text-sm mb-4">{group.description}</p>
-        )}
+  // Increment uses count
+  await supabase
+    .from("invitations")
+    .update({ uses_count: invitation.uses_count + 1 })
+    .eq("id", invitation.id);
 
-        {(group.prize_1st || group.prize_2nd || group.prize_3rd) && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-5 text-left space-y-1">
-            <p className="text-xs font-bold text-yellow-800 mb-2">🏆 Premios</p>
-            {group.prize_1st && <p className="text-sm">🥇 {group.prize_1st}</p>}
-            {group.prize_2nd && <p className="text-sm">🥈 {group.prize_2nd}</p>}
-            {group.prize_3rd && <p className="text-sm">🥉 {group.prize_3rd}</p>}
-          </div>
-        )}
-
-        <Link href={`/grupos/${group.slug}`}>
-          <Button variant="navy" size="lg" className="w-full">
-            Ver el grupo
-          </Button>
-        </Link>
-      </div>
-    </div>
-  );
+  redirect(`/grupos/${group.slug}?joined=1`);
 }
 
 function ErrorPage({ message }: { message: string }) {
@@ -136,7 +119,7 @@ function ErrorPage({ message }: { message: string }) {
       <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
         <h1 className="text-xl font-bold text-[#0A2342] mb-2">
-          Link inválido
+          No se pudo unir al grupo
         </h1>
         <p className="text-gray-500 text-sm mb-5">{message}</p>
         <Link href="/dashboard">

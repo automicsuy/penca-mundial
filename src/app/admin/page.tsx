@@ -63,8 +63,8 @@ export default async function SuperAdminPage() {
           <h2 className="font-bold text-[#0A2342] mb-3">Accesos rápidos</h2>
           <div className="space-y-2">
             <Link
-              href="/dashboard"
-              className="flex items-center gap-2 text-sm text-[#0A2342] hover:underline"
+              href="/admin/matches"
+              className="flex items-center gap-2 text-sm font-semibold text-[#C8102E] hover:underline"
             >
               ⚽ Editor de partidos y resultados
             </Link>
